@@ -1,14 +1,14 @@
-name:                  project
+name:                  jetski
 version:               0.0.1
 license:               AllRightsReserved
 author:                Ambiata <info@ambiata.com>
 maintainer:            Ambiata <info@ambiata.com>
 copyright:             (c) 2015 Ambiata.
-synopsis:              project
+synopsis:              jetski
 category:              System
 cabal-version:         >= 1.8
 build-type:            Simple
-description:           project
+description:           jetski
 
 library
   build-depends:
@@ -24,8 +24,8 @@ library
                        src
 
   exposed-modules:
-                       Paths_project
-                       Project
+                       Paths_jetski
+                       Jetski
 
 test-suite test
   type:                exitcode-stdio-1.0
@@ -39,7 +39,7 @@ test-suite test
 
   build-depends:
                        base                            >= 3          && < 5
-                     , project
+                     , jetski
                      , disorder-core
                      , disorder-corpus
                      , p
