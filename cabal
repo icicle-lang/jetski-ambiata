@@ -62,34 +62,46 @@ initialize () {
 
     PROJECT_ROOT=$(git rev-parse --show-toplevel)
 
-    # init any submodules that we need. Optional $project.submodules files.
-    MODULE_LIST=$(cd "$PROJECT_ROOT" && git submodule | grep "^-" | cut -d ' ' -f 2)
-    [ ! -f "$project.submodules" ] || {
-        MODULE_LIST=$(cat $project.submodules)
-        echo "Using $project.submodules, however this is now optional, You can remove this file if you like and it will be calculated for you."
-    }
-    for submodule in $MODULE_LIST
-    do
-        if [ -d "$submodule" ]; then
-           find "$submodule" -maxdepth 2 -name \*.cabal
-        fi
-    done | grep -q . || (
-        cd $PROJECT_ROOT
-        git submodule update --init
-    )
+    # init any submodules that we need. Don't worry about explicit submodules
+    # file here, we just want to trust git to tell us things that haven't been
+    # initialized, we really _don't_ want to run this just because a module is
+    # dirty from development changes etc...
 
-    # discover and add cabal sources
-    CABAL_SOURCES=$(cd "$PROJECT_ROOT" && find lib -maxdepth 4 ! -path "lib/*/bin/*" -name \*.cabal | xargs -L 1 dirname)
-    [ ! -f "$project.submodules" ] || {
-        CABAL_SOURCES=$MODULE_LIST
-    }
-    for submodule in $CABAL_SOURCES;
-    do
-        if ! grep -q "${submodule}\"" ${SANDBOX_DIR}/add-source-timestamps; then
-            cabal sandbox add-source ${SANDBOX:-} "$submodule"
-        fi
+    UNINITIALIZED=$(cd "$PROJECT_ROOT" && git submodule | grep "^-" | cut -d ' ' -f 2)
+    for submodule in $UNINITIALIZED; do
+        (cd "$PROJECT_ROOT" && git submodule update --init $submodule) || exit $?
     done
 
+    # if there is an explicit submodules file, then use it (hysterical
+    # raisins, compatability or something...), otherwise auto-magicically
+    # discover the sources from the lib directory.
+
+    if [ -f "$project.submodules" ]; then
+        CABAL_SOURCES=$(cat $project.submodules)
+        echo "Using $project.submodules, however this is now optional, You can remove this file if you like and it will be calculated for you."
+    else
+        CABAL_SOURCES=$(cd "$PROJECT_ROOT" && find lib -maxdepth 4 ! -path "lib/*/bin/*" -name \*.cabal | xargs -L 1 dirname)
+    fi
+
+    # Remove any cabal sources that are no longer available
+
+    for source in $(cabal sandbox list-sources | tail -n +4 | sed '$d' | sed '$d'); do
+      source_path=$(echo $source | sed s#$(pwd)/##)
+      if ! $(echo "${CABAL_SOURCES}" | grep -q "${source_path}"); then
+        echo "${source_path} no longer exists - removing from the sandbox"
+        cabal sandbox delete-source "$source" 1> /dev/null
+      fi
+    done
+
+    # We add-sources only if they haven't been added before. We should also
+    # remove them if they aren't needed, but @charleso has promised to do this
+    # so for now we live in anticipation.
+
+    for submodule in $CABAL_SOURCES; do
+        if ! grep -q "${submodule}\"" ${SANDBOX_DIR}/add-source-timestamps; then
+            cabal sandbox add-source ${SANDBOX:-} "$PROJECT_ROOT/$submodule"
+        fi
+    done
 
     # all dependencies installed, and configure been run?
     cabal install -j --only-dependencies --force-reinstalls --enable-tests
@@ -333,4 +345,4 @@ case "$MODE" in
 build|test|repl|quick|tags|lint|update|clean|depend|watch|upgrade) run_$MODE "$@" ;;
 *) fail "Unknown mode: $MODE"
 esac
-# Version: 4b1e8dd46040f08f813dec9e792a8d9db44a03b1
+# Version: 140ae31a357509c0ae261ab1065b6e18e0f5ccfb
