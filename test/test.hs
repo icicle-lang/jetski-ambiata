@@ -1,5 +1,9 @@
 import           Disorder.Core.Main
 
+import qualified Test.Jetski
+
 main :: IO ()
 main =
-  disorderMain []
+  disorderMain [
+      Test.Jetski.tests
+    ]
