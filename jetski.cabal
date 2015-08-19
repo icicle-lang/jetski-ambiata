@@ -13,9 +13,9 @@ description:           jetski
 library
   build-depends:
                        base                            >= 3          && < 5
-                     , transformers                    >= 0.3        && < 0.5
+                     , ambiata-p
                      , either                          >= 4.3        && < 4.5
-                     , p
+                     , transformers                    >= 0.3        && < 0.5
 
   ghc-options:
                        -Wall
@@ -39,9 +39,9 @@ test-suite test
 
   build-depends:
                        base                            >= 3          && < 5
-                     , jetski
+                     , ambiata-p
                      , disorder-core
                      , disorder-corpus
-                     , p
+                     , jetski
                      , QuickCheck                      == 2.7.*
                      , quickcheck-instances            == 0.3.*
