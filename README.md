@@ -31,4 +31,4 @@ mean sum count = do
     call "mean" program [argDouble sum, argDouble count] retDouble
 ```
 
-![barrel-flip](img/barrel-flip.jpg]
+![barrel-flip](img/barrel-flip.jpg)
