@@ -28,12 +28,13 @@ import           Test.QuickCheck
 ------------------------------------------------------------------------
 
 prop_arguments name args = testEitherT $ do
-    withLibrary (source name args') $ \library -> do
+    withLibrary opts (source name args') $ \library -> do
       f <- function library (unName name) retInt
       _ <- liftIO (f (fmap ffiArg args'))
       return (True === True)
   where
     args' = List.nubBy ((==) `on` var) args
+    opts  = ["-Ofast", "-march=native"]
 
 
 ------------------------------------------------------------------------
@@ -88,11 +89,12 @@ testEitherT action = testIO $ do
 
 errorRender :: JetskiError -> Text
 errorRender = \case
-    CompileError src err -> "when compiling:\n\n"
-                         <> indent src
-                         <> "\nencountered the following error:\n\n"
-                         <> indent err
-    err                  -> T.pack (show err)
+    CompilerError opts src err
+        -> "when compiling with: " <> T.unwords opts <> "\n\n"
+        <> indent src
+        <> "\nencountered the following error:\n\n"
+        <> indent err
+    err -> T.pack (show err)
   where
     indent = T.unlines . fmap ("    " <>) . T.lines
 
