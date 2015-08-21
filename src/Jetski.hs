@@ -69,11 +69,12 @@ data JetskiError =
 
 type SourceCode     = Text
 
--- | Additional options to be passes to the C compiler.
+-- | Additional options to be passed to the C compiler.
 --
 --   Some examples:
 -- @
 --   -O2
+--   -O3
 --   -Ofast
 --   -march=native
 --   -funroll-loops

@@ -34,7 +34,7 @@ prop_arguments name args = testEitherT $ do
       return (True === True)
   where
     args' = List.nubBy ((==) `on` var) args
-    opts  = ["-Ofast", "-march=native"]
+    opts  = ["-O11", "-march=native"]
 
 
 ------------------------------------------------------------------------
