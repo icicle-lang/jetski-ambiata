@@ -25,10 +25,11 @@ source = T.unlines [ "double mean(double sum, double count) {"
                    , "    return x > y ? x : y;"
                    , "}"
 
-mean :: Double -> Double -> IO Double
-mean sum count = do
-    program <- compile source
-    call "mean" program [argDouble sum, argDouble count] retDouble
+mean :: Double -> Double -> IO (Either JetskiError Double)
+mean sum count =
+  runEitherT $ withLibrary [] source $ \library -> do
+    mean <- function library "mean" retDouble
+    mean sum count
 ```
 
 ![barrel-flip](img/barrel-flip.jpg)
