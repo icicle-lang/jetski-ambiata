@@ -6,7 +6,8 @@ module Jetski
       JetskiT
     , JetskiError(..)
     , SourceCode
-    , CompileError
+    , CompilerOption
+    , CompilerError
     , Symbol
     , Library(..)
 
@@ -61,14 +62,31 @@ type JetskiT = EitherT JetskiError
 
 data JetskiError =
     UnsupportedOS
-  | CompileError   SourceCode CompileError
+  | CompilerError  [CompilerOption] SourceCode CompilerError
   | SymbolNotFound Symbol
   | Disaster       IOException
   deriving (Eq, Show)
 
-type SourceCode   = Text
-type CompileError = Text
-type Symbol       = Text
+type SourceCode     = Text
+
+-- | Additional options to be passed to the C compiler.
+--
+--   Some examples:
+-- @
+--   -O2
+--   -O3
+--   -Ofast
+--   -march=native
+--   -funroll-loops
+-- @
+--
+type CompilerOption = Text
+
+-- | The @stderr@ output from the C compiler.
+type CompilerError  = Text
+
+-- | The name of a function in the compiled library.
+type Symbol         = Text
 
 data Library = Library {
     -- | A reference to the dynamic library itself.
@@ -92,14 +110,14 @@ retDouble = mkStorableRetType ffi_type_double
 ------------------------------------------------------------------------
 -- Compiling and Loading C Source
 
-withLibrary :: (MonadIO m, MonadMask m) => Text -> (Library -> JetskiT m a) -> JetskiT m a
-withLibrary source action = bracketEitherT' acquire release action
+withLibrary :: (MonadIO m, MonadMask m) => [CompilerOption] -> Text -> (Library -> JetskiT m a) -> JetskiT m a
+withLibrary options source action = bracketEitherT' acquire release action
   where
-    acquire = compileLibrary source
+    acquire = compileLibrary options source
     release = releaseLibrary
 
-compileLibrary :: (MonadIO m, MonadMask m) => Text -> JetskiT m Library
-compileLibrary source =
+compileLibrary :: (MonadIO m, MonadMask m) => [CompilerOption] -> Text -> JetskiT m Library
+compileLibrary options source =
   withSystemTempDirectory "jetski-" $ \dir -> do
     os  <- supportedOS
 
@@ -109,11 +127,11 @@ compileLibrary source =
     tryIO (T.writeFile srcPath source)
 
     (code, _, stderr) <- readProcess
-        "gcc" [ gccShared os, "-O2", "-o", libPath, srcPath ]
+        "gcc" ([ gccShared os, "-o", libPath, srcPath ] <> fmap T.unpack options)
 
     case code of
       ExitSuccess   -> return ()
-      ExitFailure _ -> left (CompileError source stderr)
+      ExitFailure _ -> left (CompilerError options source stderr)
 
     lib <- tryIO (dlopen libPath [RTLD_NOW, RTLD_LOCAL])
 
