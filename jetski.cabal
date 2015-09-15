@@ -1,4 +1,4 @@
-name:                  jetski
+name:                  ambiata-jetski
 version:               0.0.1
 license:               AllRightsReserved
 author:                Ambiata <info@ambiata.com>
@@ -33,7 +33,7 @@ library
                        src
 
   exposed-modules:
-                       Paths_jetski
+                       Paths_ambiata_jetski
                        Jetski
                        Jetski.OS
 
@@ -49,12 +49,12 @@ test-suite test
 
   build-depends:
                        base                            >= 3          && < 5
+                     , ambiata-disorder-core
+                     , ambiata-disorder-corpus
+                     , ambiata-jetski
                      , ambiata-p
                      , containers                      == 0.5.*
-                     , disorder-core
-                     , disorder-corpus
                      , either                          >= 4.3        && < 4.5
-                     , jetski
                      , QuickCheck                      == 2.7.*
                      , quickcheck-instances            == 0.3.*
                      , text                            == 1.2.*
