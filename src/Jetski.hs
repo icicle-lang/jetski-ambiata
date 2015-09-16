@@ -129,9 +129,11 @@ compileLibrary options source =
     (code, _, stderr) <- readProcess
         "gcc" ([ gccShared os, "-o", libPath, srcPath ] <> fmap T.unpack options)
 
+    let stderr' = T.replace (T.pack srcPath) "jetski.c" stderr
+
     case code of
       ExitSuccess   -> return ()
-      ExitFailure _ -> left (CompilerError options source stderr)
+      ExitFailure _ -> left (CompilerError options source stderr')
 
     lib <- tryIO (dlopen libPath [RTLD_NOW, RTLD_LOCAL])
 
