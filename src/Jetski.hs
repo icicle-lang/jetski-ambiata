@@ -123,8 +123,9 @@ compileLibrary options source =
 
     let srcPath = dir <> "/jetski.c"
         libPath = dir <> "/jetski." <> libExtension os
+        source' = "#line 1 \"jetski.c\"\n" <> source
 
-    tryIO (T.writeFile srcPath source)
+    tryIO (T.writeFile srcPath source')
 
     (code, _, stderr) <- readProcess
         "gcc" ([ gccShared os, "-o", libPath, srcPath ] <> fmap T.unpack options)
@@ -135,6 +136,7 @@ compileLibrary options source =
 
     lib <- tryIO (dlopen libPath [RTLD_NOW, RTLD_LOCAL])
 
+    -- Should this return source or source'? I don't think it matters much.
     return (Library lib source)
 
 releaseLibrary :: MonadIO m => Library -> m ()
