@@ -15,6 +15,7 @@ module Jetski
     , withLibrary
     , compileLibrary
     , releaseLibrary
+    , compileAssembly
 
       -- * Accessing Functions
     , function
@@ -45,6 +46,7 @@ import           Foreign.LibFFI.Types as X
 
 import           P
 
+import           System.Directory (getCurrentDirectory, setCurrentDirectory)
 import           System.Directory (getTemporaryDirectory, removeDirectoryRecursive)
 import           System.Exit (ExitCode(..))
 import           System.IO (IO, FilePath)
@@ -67,7 +69,8 @@ data JetskiError =
   | Disaster       IOException
   deriving (Eq, Show)
 
-type SourceCode     = Text
+type SourceCode   = Text
+type AssemblyCode = Text
 
 -- | Additional options to be passed to the C compiler.
 --
@@ -93,7 +96,7 @@ data Library = Library {
     libDL :: DL
 
     -- | The source code of the compiled library.
-  , libSource  :: SourceCode
+  , libSource :: SourceCode
   }
 
 
@@ -116,28 +119,44 @@ withLibrary options source action = bracketEitherT' acquire release action
     acquire = compileLibrary options source
     release = releaseLibrary
 
-compileLibrary :: (MonadIO m, MonadMask m) => [CompilerOption] -> Text -> JetskiT m Library
-compileLibrary options source =
+compile :: (MonadIO m, MonadMask m) => [CompilerOption] -> Text -> JetskiT m a -> JetskiT m a
+compile options source action =
+  bracketEitherT' (liftIO getCurrentDirectory) (liftIO . setCurrentDirectory) $ \_ -> do
   withSystemTempDirectory "jetski-" $ \dir -> do
-    os  <- supportedOS
+    liftIO (setCurrentDirectory dir)
 
-    let srcPath = dir <> "/jetski.c"
-        libPath = dir <> "/jetski." <> libExtension os
+    let srcPath = "jetski.c"
         source' = "#line 1 \"jetski.c\"\n" <> source
+        gccArgs = [srcPath] <> fmap T.unpack options
 
     tryIO (T.writeFile srcPath source')
 
-    (code, _, stderr) <- readProcess
-        "gcc" ([ gccShared os, "-o", libPath, srcPath ] <> fmap T.unpack options)
+    (code, _, stderr) <- readProcess "gcc" gccArgs
 
     case code of
       ExitSuccess   -> return ()
       ExitFailure _ -> left (CompilerError options source stderr)
 
-    lib <- tryIO (dlopen libPath [RTLD_NOW, RTLD_LOCAL])
+    action
 
-    -- Should this return source or source'? I don't think it matters much.
+compileLibrary :: (MonadIO m, MonadMask m) => [CompilerOption] -> Text -> JetskiT m Library
+compileLibrary options source = do
+  os  <- supportedOS
+
+  let libPath  = "jetski." <> libExtension os
+      options' = [gccShared os, "-o", libPath] <> options
+
+  compile options' source $ do
+    lib <- tryIO (dlopen (T.unpack libPath) [RTLD_NOW, RTLD_LOCAL])
     return (Library lib source)
+
+compileAssembly :: (MonadIO m, MonadMask m) => [CompilerOption] -> Text -> JetskiT m AssemblyCode
+compileAssembly options source = do
+  let asmPath  = "jetski.s"
+      options' = ["-S"] <> options
+
+  compile options' source $
+    tryIO (T.readFile asmPath)
 
 releaseLibrary :: MonadIO m => Library -> m ()
 releaseLibrary = liftIO . hushIO . dlclose . libDL
@@ -160,11 +179,11 @@ function lib symbol retType = do
 supportedOS :: Monad m => JetskiT m OS
 supportedOS = maybe (left UnsupportedOS) return currentOS
 
-libExtension :: OS -> String
+libExtension :: OS -> Text
 libExtension Linux  = "so"
 libExtension Darwin = "dylib"
 
-gccShared :: OS -> String
+gccShared :: OS -> CompilerOption
 gccShared Linux  = "-shared"
 gccShared Darwin = "-dynamiclib"
 

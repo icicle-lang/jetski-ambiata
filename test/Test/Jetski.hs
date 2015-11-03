@@ -8,7 +8,6 @@ module Test.Jetski where
 import           Control.Monad.IO.Class (liftIO)
 import           Control.Monad.Trans.Either (EitherT(..))
 
-import qualified Data.List as List
 import           Data.Text (Text)
 import qualified Data.Text as T
 
@@ -24,20 +23,25 @@ import           System.IO (IO)
 
 import           Test.Jetski.Arbitrary
 import           Test.QuickCheck
+import           Test.QuickCheck.Property (succeeded)
 
 ------------------------------------------------------------------------
 
-prop_arguments name args = testEitherT $ do
-    withLibrary opts (source name args') $ \library -> do
-      f <- function library (unName name) retInt
-      _ <- liftIO (f (fmap ffiArg args'))
-      return (True === True)
-  where
-    args' = List.nubBy ((==) `on` var) args
-    opts  = ["-O11", "-march=native"]
+prop_library name (Arguments args) = testEitherT $ do
+  withLibrary extraOptions (source name args) $ \library -> do
+    f <- function library (unName name) retInt
+    _ <- liftIO (f (fmap ffiArg args))
+    return (property succeeded)
+
+prop_assembly name (Arguments args) = testEitherT $ do
+  _ <- compileAssembly extraOptions (source name args)
+  return (property succeeded)
 
 
 ------------------------------------------------------------------------
+
+extraOptions :: [CompilerOption]
+extraOptions = ["-O11", "-march=native"]
 
 source :: Name -> [Argument] -> Text
 source name args = T.unlines [
@@ -49,18 +53,12 @@ source name args = T.unlines [
     ]
   where
     params  = T.intercalate ", " (fmap param args)
-    param x = ctype x <> " " <> var x
+    param x = ctype x <> " " <> nameOfArgument x
 
     expr   = T.intercalate " + "
            . fmap ("(int)" <>)
            . ("42":)
-           $ fmap var args
-
-var :: Argument -> Text
-var = \case
-  Double  n _ -> unName n
-  Int32   n _ -> unName n
-  VoidPtr n _ -> unName n
+           $ fmap nameOfArgument args
 
 ctype :: Argument -> Text
 ctype = \case

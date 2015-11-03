@@ -5,6 +5,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Test.Jetski.Arbitrary where
 
+import qualified Data.List as List
 import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.Word (Word)
@@ -29,8 +30,21 @@ data Argument =
   | VoidPtr Name IntPtr
   deriving (Eq, Ord, Show)
 
+newtype Arguments = Arguments { getArguments :: [Argument] }
+  deriving (Eq, Ord, Show)
+
+nameOfArgument :: Argument -> Text
+nameOfArgument = \case
+  Double  n _ -> unName n
+  Int32   n _ -> unName n
+  VoidPtr n _ -> unName n
+
 
 ------------------------------------------------------------------------
+
+instance Arbitrary Arguments where
+  arbitrary =
+    Arguments . List.nubBy ((==) `on` nameOfArgument) <$> arbitrary
 
 instance Arbitrary Argument where
   arbitrary = oneof [
