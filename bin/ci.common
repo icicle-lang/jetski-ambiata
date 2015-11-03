@@ -7,6 +7,6 @@ git submodule init
 git submodule sync
 git submodule update
 
-./cabal update
-./cabal build
-./cabal test --log=/dev/stdout
+./mafia update
+./mafia build
+./mafia testci
