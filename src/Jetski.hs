@@ -142,13 +142,14 @@ compile options source action =
 compileLibrary :: (MonadIO m, MonadMask m) => [CompilerOption] -> Text -> JetskiT m Library
 compileLibrary options source = do
   os  <- supportedOS
-  dir <- T.pack <$> liftIO getCurrentDirectory
 
-  let libPath  = dir <> "/jetski." <> libExtension os
-      options' = [gccShared os, "-o", libPath] <> options
+  let libName  = "jetski." <> libExtension os
+      options' = [gccShared os, "-o", libName] <> options
 
   compile options' source $ do
-    lib <- tryIO (dlopen (T.unpack libPath) [RTLD_NOW, RTLD_LOCAL])
+    dir <- liftIO getCurrentDirectory
+    let libPath = dir <> "/" <> T.unpack libName
+    lib <- tryIO (dlopen libPath [RTLD_NOW, RTLD_LOCAL])
     return (Library lib source)
 
 compileAssembly :: (MonadIO m, MonadMask m) => [CompilerOption] -> Text -> JetskiT m AssemblyCode
