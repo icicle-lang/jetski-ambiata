@@ -144,7 +144,7 @@ compileLibrary options source = do
   os  <- supportedOS
 
   let libName  = "jetski." <> libExtension os
-      options' = [gccShared os, "-o", libName] <> options
+      options' = gccShared os <> ["-o", libName] <> options
 
   compile options' source $ do
     dir <- liftIO getCurrentDirectory
@@ -185,9 +185,9 @@ libExtension :: OS -> Text
 libExtension Linux  = "so"
 libExtension Darwin = "dylib"
 
-gccShared :: OS -> CompilerOption
-gccShared Linux  = "-shared"
-gccShared Darwin = "-dynamiclib"
+gccShared :: OS -> [CompilerOption]
+gccShared Linux  = ["-shared", "-fPIC"]
+gccShared Darwin = pure "-dynamiclib"
 
 
 ------------------------------------------------------------------------
