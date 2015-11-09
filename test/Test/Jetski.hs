@@ -56,12 +56,16 @@ source name args = T.unlines [
     params  = T.intercalate ", " (fmap param args)
     param x = ctype x <> " " <> nameOfArgument x
 
-    expr   = T.intercalate " + "
-           . ("static_cast<intptr_t>(42)":)
-           $ fmap go args
+    expr
+     | null args
+     = "42"
+     | otherwise
+     = T.intercalate " + "
+     . ("(int)((long)42)":)
+     $ fmap go args
 
     bracket s = "(" <> s <> ")"
-    go x = whichCastToInt x <> bracket (nameOfArgument x)
+    go x = "(int)((long)" <> bracket (nameOfArgument x) <> ")"
 
 ctype :: Argument -> Text
 ctype = \case
