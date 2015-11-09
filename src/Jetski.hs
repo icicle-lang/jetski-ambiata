@@ -125,13 +125,13 @@ compile options source action =
   withSystemTempDirectory "jetski-" $ \dir -> do
     liftIO (setCurrentDirectory dir)
 
-    let srcPath = "jetski.c"
-        source' = "#line 1 \"jetski.c\"\n" <> source
+    let srcPath = "jetski.cpp"
+        source' = "#line 1 \"jetski.cpp\"\n" <> source
         gccArgs = [srcPath] <> fmap T.unpack options
 
     tryIO (T.writeFile srcPath source')
 
-    (code, _, stderr) <- readProcess "gcc" gccArgs
+    (code, _, stderr) <- readProcess "g++" gccArgs
 
     case code of
       ExitSuccess   -> return ()
