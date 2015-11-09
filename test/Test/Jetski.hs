@@ -45,7 +45,7 @@ extraOptions = ["-O11", "-march=native"]
 
 source :: Name -> [Argument] -> Text
 source name args = T.unlines [
-      "#include <cstdint>"
+      "#include <stdint.h>"
     , ""
     , "extern \"C\" { int " <> unName name <> "(" <> params <> ") {"
     , "    return " <> expr  <> ";"
