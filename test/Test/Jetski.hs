@@ -47,25 +47,18 @@ source :: Name -> [Argument] -> Text
 source name args = T.unlines [
       "#include <stdint.h>"
     , ""
-    , "extern \"C\" { int " <> unName name <> "(" <> params <> ") {"
+    , "int " <> unName name <> "(" <> params <> ") {"
     , "    return " <> expr  <> ";"
-    , "}"
     , "}"
     ]
   where
     params  = T.intercalate ", " (fmap param args)
     param x = ctype x <> " " <> nameOfArgument x
 
-    expr
-     | null args
-     = "42"
-     | otherwise
-     = T.intercalate " + "
-     . ("(int)((long)42)":)
-     $ fmap go args
-
-    bracket s = "(" <> s <> ")"
-    go x = "(int)((long)" <> bracket (nameOfArgument x) <> ")"
+    expr   = T.intercalate " + "
+           . fmap ("(int)" <>)
+           . ("42":)
+           $ fmap nameOfArgument args
 
 ctype :: Argument -> Text
 ctype = \case
@@ -77,13 +70,6 @@ ffiArg :: Argument -> Arg
 ffiArg (Double  _ x) = argDouble x
 ffiArg (Int32   _ x) = argInt32  x
 ffiArg (VoidPtr _ x) = argPtr (intPtrToPtr x)
-
-whichCastToInt :: Argument -> Text
-whichCastToInt x
- = case x of
-    Double{}  -> "static_cast<intptr_t>"
-    Int32{}   -> "static_cast<intptr_t>"
-    VoidPtr{} -> "reinterpret_cast<intptr_t>"
 
 ------------------------------------------------------------------------
 
