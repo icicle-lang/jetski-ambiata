@@ -46,13 +46,12 @@ import           Foreign.LibFFI.Types as X
 
 import           P
 
-import           System.Directory (getCurrentDirectory, setCurrentDirectory)
 import           System.Directory (getTemporaryDirectory, removeDirectoryRecursive)
 import           System.Exit (ExitCode(..))
 import           System.IO (IO, FilePath)
 import           System.IO.Temp (createTempDirectory)
 import           System.Posix.DynamicLinker (DL(..), RTLDFlags(..), dlopen, dlclose, dlsym)
-import           System.Process (readProcessWithExitCode)
+import           System.Process (CreateProcess(..), proc, readCreateProcessWithExitCode)
 
 import           X.Control.Monad.Catch (bracketEitherT')
 
@@ -119,25 +118,22 @@ withLibrary options source action = bracketEitherT' acquire release action
     acquire = compileLibrary options source
     release = releaseLibrary
 
-compile :: (MonadIO m, MonadMask m) => [CompilerOption] -> Text -> JetskiT m a -> JetskiT m a
+compile :: (MonadIO m, MonadMask m) => [CompilerOption] -> Text -> (FilePath -> JetskiT m a) -> JetskiT m a
 compile options source action =
-  bracketEitherT' (liftIO getCurrentDirectory) (liftIO . setCurrentDirectory) $ \_ -> do
   withSystemTempDirectory "jetski-" $ \dir -> do
-    liftIO (setCurrentDirectory dir)
-
     let srcPath = "jetski.c"
         source' = "#line 1 \"jetski.c\"\n" <> source
         gccArgs = [srcPath] <> fmap T.unpack options
 
-    tryIO (T.writeFile srcPath source')
+    tryIO (T.writeFile (dir <> "/" <> srcPath) source')
 
-    (code, _, stderr) <- readProcess "gcc" gccArgs
+    (code, _, stderr) <- readProcess dir "gcc" gccArgs
 
     case code of
       ExitSuccess   -> return ()
       ExitFailure _ -> left (CompilerError options source stderr)
 
-    action
+    action dir
 
 compileLibrary :: (MonadIO m, MonadMask m) => [CompilerOption] -> Text -> JetskiT m Library
 compileLibrary options source = do
@@ -146,8 +142,7 @@ compileLibrary options source = do
   let libName  = "jetski." <> libExtension os
       options' = [gccShared os, "-o", libName] <> options
 
-  compile options' source $ do
-    dir <- liftIO getCurrentDirectory
+  compile options' source $ \dir -> do
     let libPath = dir <> "/" <> T.unpack libName
     lib <- tryIO (dlopen libPath [RTLD_NOW, RTLD_LOCAL])
     return (Library lib source)
@@ -157,8 +152,8 @@ compileAssembly options source = do
   let asmPath  = "jetski.s"
       options' = ["-S"] <> options
 
-  compile options' source $
-    tryIO (T.readFile asmPath)
+  compile options' source $ \dir -> do
+    tryIO (T.readFile (dir <> "/" <> asmPath))
 
 releaseLibrary :: MonadIO m => Library -> m ()
 releaseLibrary = liftIO . hushIO . dlclose . libDL
@@ -193,9 +188,11 @@ gccShared Darwin = "-dynamiclib"
 ------------------------------------------------------------------------
 -- Running Processes
 
-readProcess :: MonadIO m => FilePath -> [String] -> m (ExitCode, Text, Text)
-readProcess cmd args = do
-    (code, stdout, stderr) <- liftIO (readProcessWithExitCode cmd args "")
+readProcess :: MonadIO m => FilePath -> FilePath -> [String] -> m (ExitCode, Text, Text)
+readProcess dir cmd args = do
+    let cp = (proc cmd args) { cwd = Just dir }
+
+    (code, stdout, stderr) <- liftIO (readCreateProcessWithExitCode cp "")
 
     let stdout' = T.pack stdout
         stderr' = T.pack stderr
