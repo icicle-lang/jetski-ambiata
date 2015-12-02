@@ -3,8 +3,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Jetski
     ( -- * Types
-      JetskiT
-    , JetskiError(..)
+      JetskiError(..)
     , SourceCode
     , CompilerOption
     , CompilerError
@@ -59,8 +58,6 @@ import           X.Control.Monad.Catch (bracketEitherT')
 ------------------------------------------------------------------------
 -- Types
 
-type JetskiT = EitherT JetskiError
-
 data JetskiError =
     UnsupportedOS
   | CompilerError  [CompilerOption] SourceCode CompilerError
@@ -94,6 +91,9 @@ data Library = Library {
     -- | A reference to the dynamic library itself.
     libDL :: DL
 
+    -- | The temporary directory which contains the library.
+  , libDirectory :: FilePath
+
     -- | The source code of the compiled library.
   , libSource :: SourceCode
   }
@@ -112,68 +112,78 @@ retDouble = mkStorableRetType ffi_type_double
 ------------------------------------------------------------------------
 -- Compiling and Loading C Source
 
-withLibrary :: (MonadIO m, MonadMask m) => [CompilerOption] -> Text -> (Library -> JetskiT m a) -> JetskiT m a
+withLibrary
+  :: (MonadIO m, MonadMask m)
+  => [CompilerOption]
+  -> Text
+  -> (Library -> EitherT JetskiError m a)
+  -> EitherT JetskiError m a
+
 withLibrary options source action = bracketEitherT' acquire release action
   where
     acquire = compileLibrary options source
     release = releaseLibrary
 
-compile :: (MonadIO m, MonadMask m) => [CompilerOption] -> Text -> (FilePath -> JetskiT m a) -> JetskiT m a
-compile options source action =
-  withSystemTempDirectory "jetski-" $ \dir -> do
-    let srcPath = "jetski.c"
-        source' = "#line 1 \"jetski.c\"\n" <> source
-        gccArgs = [srcPath] <> fmap T.unpack options
+compile :: (MonadIO m, MonadMask m) => FilePath -> [CompilerOption] -> Text -> EitherT JetskiError m ()
+compile dir options source = do
+  let srcPath = "jetski.c"
+      source' = "#line 1 \"jetski.c\"\n" <> source
+      gccArgs = [srcPath] <> fmap T.unpack options
 
-    tryIO (T.writeFile (dir <> "/" <> srcPath) source')
+  tryIO (T.writeFile (dir <> "/" <> srcPath) source')
 
-    (code, _, stderr) <- readProcess dir "gcc" gccArgs
+  (code, _, stderr) <- readProcess dir "gcc" gccArgs
 
-    case code of
-      ExitSuccess   -> return ()
-      ExitFailure _ -> left (CompilerError options source stderr)
+  case code of
+    ExitSuccess   -> return ()
+    ExitFailure _ -> left (CompilerError options source stderr)
 
-    action dir
-
-compileLibrary :: (MonadIO m, MonadMask m) => [CompilerOption] -> Text -> JetskiT m Library
+compileLibrary :: (MonadIO m, MonadMask m) => [CompilerOption] -> Text -> EitherT JetskiError m Library
 compileLibrary options source = do
   os  <- supportedOS
 
   let libName  = "jetski." <> libExtension os
       options' = gccShared os <> ["-o", libName] <> options
 
-  compile options' source $ \dir -> do
-    let libPath = dir <> "/" <> T.unpack libName
-    lib <- tryIO (dlopen libPath [RTLD_NOW, RTLD_LOCAL])
-    return (Library lib source)
+  dir <- createSystemTempDirectory "jetski-"
+  compile dir options' source
 
-compileAssembly :: (MonadIO m, MonadMask m) => [CompilerOption] -> Text -> JetskiT m AssemblyCode
+  let libPath = dir <> "/" <> T.unpack libName
+  lib <- tryIO (dlopen libPath [RTLD_NOW, RTLD_LOCAL])
+
+  return (Library lib dir source)
+
+compileAssembly :: (MonadIO m, MonadMask m) => [CompilerOption] -> Text -> EitherT JetskiError m AssemblyCode
 compileAssembly options source = do
   let asmPath  = "jetski.s"
       options' = ["-S"] <> options
 
-  compile options' source $ \dir -> do
+  withSystemTempDirectory "jetski-" $ \dir -> do
+    compile dir options' source
     tryIO (T.readFile (dir <> "/" <> asmPath))
 
 releaseLibrary :: MonadIO m => Library -> m ()
-releaseLibrary = liftIO . hushIO . dlclose . libDL
+releaseLibrary (Library lib dir _) =
+  liftIO $ do
+    hushIO (dlclose lib)
+    hushIO (removeDirectoryRecursive dir)
 
 
 ------------------------------------------------------------------------
 -- Accessing Functions
 
 function :: (MonadIO m, MonadCatch m)
-         => Library -> Symbol -> RetType a -> JetskiT m ([Arg] -> IO a)
+         => Library -> Symbol -> RetType a -> EitherT JetskiError m ([Arg] -> IO a)
 function lib symbol retType = do
-    fptr <- tryIO' (const (SymbolNotFound symbol))
-                   (dlsym (libDL lib) (T.unpack symbol))
-    return (callFFI fptr retType)
+  fptr <- tryIO' (const (SymbolNotFound symbol))
+                 (dlsym (libDL lib) (T.unpack symbol))
+  return (callFFI fptr retType)
 
 
 ------------------------------------------------------------------------
 -- Operating System Specifics
 
-supportedOS :: Monad m => JetskiT m OS
+supportedOS :: Monad m => EitherT JetskiError m OS
 supportedOS = maybe (left UnsupportedOS) return currentOS
 
 libExtension :: OS -> Text
@@ -190,25 +200,32 @@ gccShared Darwin = pure "-dynamiclib"
 
 readProcess :: MonadIO m => FilePath -> FilePath -> [String] -> m (ExitCode, Text, Text)
 readProcess dir cmd args = do
-    let cp = (proc cmd args) { cwd = Just dir }
+  let cp = (proc cmd args) { cwd = Just dir }
 
-    (code, stdout, stderr) <- liftIO (readCreateProcessWithExitCode cp "")
+  (code, stdout, stderr) <- liftIO (readCreateProcessWithExitCode cp "")
 
-    let stdout' = T.pack stdout
-        stderr' = T.pack stderr
+  let stdout' = T.pack stdout
+      stderr' = T.pack stderr
 
-    return (code, stdout', stderr')
+  return (code, stdout', stderr')
 
 
 ------------------------------------------------------------------------
 -- Temporary Files
 
-withSystemTempDirectory :: (MonadMask m, MonadIO m) => FilePath -> (FilePath -> JetskiT m a) -> JetskiT m a
-withSystemTempDirectory template action =
-    bracketEitherT' acquire release action
-  where
-    acquire = tryIO $ getTemporaryDirectory >>= \tmp -> createTempDirectory tmp template
-    release = tryIO . removeDirectoryRecursive
+withSystemTempDirectory
+  :: (MonadMask m, MonadIO m)
+  => FilePath
+  -> (FilePath -> EitherT JetskiError m a)
+  -> EitherT JetskiError m a
+
+withSystemTempDirectory template =
+  bracketEitherT' (createSystemTempDirectory template)
+                  (tryIO . removeDirectoryRecursive)
+
+createSystemTempDirectory :: MonadIO m => FilePath -> EitherT JetskiError m FilePath
+createSystemTempDirectory template =
+  tryIO (getTemporaryDirectory >>= \tmp -> createTempDirectory tmp template)
 
 
 ------------------------------------------------------------------------
@@ -216,12 +233,12 @@ withSystemTempDirectory template action =
 
 -- | Try running an IO action and if it throws an IOException, wrap it
 --   with Disaster.
-tryIO :: forall a m. MonadIO m => IO a -> JetskiT m a
+tryIO :: forall a m. MonadIO m => IO a -> EitherT JetskiError m a
 tryIO = tryIO' Disaster
 
 -- | Try running an IO action and if it throws an IOException, wrap it
 --   in a JetskiError.
-tryIO' :: forall a m. MonadIO m => (IOException -> JetskiError) -> IO a -> JetskiT m a
+tryIO' :: forall a m. MonadIO m => (IOException -> JetskiError) -> IO a -> EitherT JetskiError m a
 tryIO' takeError io = EitherT (liftIO (handle onError io'))
   where
     io' :: IO (Either JetskiError a)
