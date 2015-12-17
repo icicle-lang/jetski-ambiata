@@ -1,6 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Jetski
     ( -- * Types
       JetskiError(..)
@@ -34,7 +35,6 @@ import qualified Data.Text.IO as T
 import           Control.Exception (IOException)
 import           Control.Monad.Catch (MonadCatch, MonadMask, handle)
 import           Control.Monad.IO.Class (MonadIO, liftIO)
-import           Control.Monad.Trans.Either (EitherT(..), left)
 
 import           Jetski.OS (OS(..), currentOS)
 
@@ -52,7 +52,8 @@ import           System.IO.Temp (createTempDirectory)
 import           System.Posix.DynamicLinker (DL(..), RTLDFlags(..), dlopen, dlclose, dlsym)
 import           System.Process (CreateProcess(..), proc, readCreateProcessWithExitCode)
 
-import           X.Control.Monad.Catch (bracketEitherT')
+import           X.Control.Monad.Trans.Either (EitherT, pattern EitherT)
+import           X.Control.Monad.Trans.Either (bracketEitherT', left)
 
 
 ------------------------------------------------------------------------

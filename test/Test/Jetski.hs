@@ -6,7 +6,6 @@
 module Test.Jetski where
 
 import           Control.Monad.IO.Class (liftIO)
-import           Control.Monad.Trans.Either (EitherT(..))
 
 import           Data.Text (Text)
 import qualified Data.Text as T
@@ -24,6 +23,8 @@ import           System.IO (IO)
 import           Test.Jetski.Arbitrary
 import           Test.QuickCheck
 import           Test.QuickCheck.Property (succeeded)
+
+import           X.Control.Monad.Trans.Either (EitherT, runEitherT)
 
 ------------------------------------------------------------------------
 
