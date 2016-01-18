@@ -54,7 +54,7 @@ test-suite test
                      , ambiata-p
                      , ambiata-x-eithert
                      , containers                      == 0.5.*
-                     , QuickCheck                      == 2.7.*
+                     , QuickCheck                      == 2.8.*
                      , quickcheck-instances            == 0.3.*
                      , text                            == 1.2.*
                      , transformers                    >= 0.3        && < 0.5
