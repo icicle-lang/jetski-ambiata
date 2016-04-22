@@ -1,5 +1,6 @@
 TAGS
 dist
+gen
 cabal-dev
 *.o
 *.hi
