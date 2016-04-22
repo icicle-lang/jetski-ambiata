@@ -16,6 +16,7 @@ module Jetski
     , compileLibrary
     , releaseLibrary
     , compileAssembly
+    , compileIR
 
       -- * Accessing Functions
     , function
@@ -162,6 +163,15 @@ compileAssembly options source = do
   withSystemTempDirectory "jetski-" $ \dir -> do
     compile dir options' source
     tryIO (T.readFile (dir <> "/" <> asmPath))
+
+compileIR :: (MonadIO m, MonadMask m) => [CompilerOption] -> Text -> EitherT JetskiError m AssemblyCode
+compileIR options source = do
+  let irPath  = "jetski.ll"
+      options' = ["-S", "-emit-llvm"] <> options
+
+  withSystemTempDirectory "jetski-" $ \dir -> do
+    compile dir options' source
+    tryIO (T.readFile (dir <> "/" <> irPath))
 
 releaseLibrary :: MonadIO m => Library -> m ()
 releaseLibrary (Library lib dir _) =
