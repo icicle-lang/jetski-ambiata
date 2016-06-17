@@ -29,7 +29,6 @@ module Jetski
     ) where
 
 import           Data.String (String)
-import           Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 

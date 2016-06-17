@@ -6,7 +6,6 @@
 module Test.Jetski.Arbitrary where
 
 import qualified Data.List as List
-import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.Word (Word)
 
