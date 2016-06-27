@@ -1,0 +1,16 @@
+[boris]
+  version = 1
+
+[build.submodules]
+  command = [["dangling-refs"]]
+
+[build.validate]
+  command = [["validate-respect"]]
+
+[build.dist-7-8]
+
+[build.dist-7-10]
+
+[build.branches-7-8]
+
+[build.branches-7-10]
