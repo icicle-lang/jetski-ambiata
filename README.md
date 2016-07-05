@@ -45,6 +45,7 @@ To build this project you'll need `libffi` installed and available to `pkgconfig
 **Install:**
 ```bash
 brew install libffi
+brew install pkg-config
 ```
 
 **Configure:**
