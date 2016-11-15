@@ -33,7 +33,7 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 
 import           Control.Exception (IOException)
-import           Control.Monad.Catch (MonadCatch, MonadMask, handle)
+import           Control.Monad.Catch (MonadMask, handle)
 import           Control.Monad.IO.Class (MonadIO, liftIO)
 
 import           Jetski.OS (OS(..), currentOS)
@@ -125,7 +125,7 @@ withLibrary options source action = bracketEitherT' acquire release action
     acquire = compileLibrary options source
     release = releaseLibrary
 
-compile :: (MonadIO m, MonadMask m) => FilePath -> [CompilerOption] -> Text -> EitherT JetskiError m ()
+compile :: MonadIO m => FilePath -> [CompilerOption] -> Text -> EitherT JetskiError m ()
 compile dir options source = do
   let srcPath = "jetski.c"
       source' = "#line 1 \"jetski.c\"\n" <> source
@@ -139,7 +139,7 @@ compile dir options source = do
     ExitSuccess   -> return ()
     ExitFailure _ -> left (CompilerError options source stderr)
 
-compileLibrary :: (MonadIO m, MonadMask m) => [CompilerOption] -> Text -> EitherT JetskiError m Library
+compileLibrary :: MonadIO m => [CompilerOption] -> Text -> EitherT JetskiError m Library
 compileLibrary options source = do
   os  <- supportedOS
 
@@ -182,8 +182,7 @@ releaseLibrary (Library lib dir _) =
 ------------------------------------------------------------------------
 -- Accessing Functions
 
-function :: (MonadIO m, MonadCatch m)
-         => Library -> Symbol -> RetType a -> EitherT JetskiError m ([Arg] -> IO a)
+function :: MonadIO m => Library -> Symbol -> RetType a -> EitherT JetskiError m ([Arg] -> IO a)
 function lib symbol retType = do
   fptr <- tryIO' (const (SymbolNotFound symbol))
                  (dlsym (libDL lib) (T.unpack symbol))
