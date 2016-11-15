@@ -16,9 +16,12 @@ library
                      , ambiata-p
                      , ambiata-x-eithert
                      , bytestring                      == 0.10.*
+                     , cryptonite                      == 0.15.*
                      , directory                       == 1.2.*
                      , exceptions                      >= 0.6        && < 0.9
+                     , filepath                        == 1.4.*
                      , libffi                          == 0.1.*
+                     , memory                          == 0.13.*
                      , process                         >= 1.2.3      && < 1.5
                      , temporary                       == 1.2.*
                      , text                            == 1.2.*
@@ -32,8 +35,8 @@ library
                        src
 
   exposed-modules:
-                       Paths_ambiata_jetski
                        Jetski
+                       Jetski.Hash
                        Jetski.OS
 
 test-suite test
