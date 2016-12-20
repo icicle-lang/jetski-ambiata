@@ -295,7 +295,7 @@ libExtension Darwin = "dylib"
 gccShared :: OS -> [CompilerOption]
 gccShared Linux  = ["-shared", "-fPIC"]
 gccShared Darwin = [ "-dynamiclib"
-                   , "-Wl,-undefined,dynamic-lookup" -- allow undefined symbols for shared libraries
+                   , "-Wl,-undefined,dynamic_lookup" -- allow undefined symbols for shared libraries
                                                      -- on linux use "-rdynamic" on the executable instead
                    ]
 
