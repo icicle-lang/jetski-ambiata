@@ -20,7 +20,6 @@ library
                      , directory                       == 1.2.*
                      , exceptions                      >= 0.6        && < 0.9
                      , filepath                        == 1.4.*
-                     , libffi                          == 0.1.*
                      , memory                          == 0.13.*
                      , process                         >= 1.2.3      && < 1.5
                      , temporary                       == 1.2.*
@@ -38,6 +37,11 @@ library
                        Jetski
                        Jetski.Hash
                        Jetski.OS
+
+                       Jetski.Foreign.Argument
+                       Jetski.Foreign.Binding
+                       Jetski.Foreign.Function
+                       Jetski.Foreign.Return
 
 test-suite test
   type:                exitcode-stdio-1.0

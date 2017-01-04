@@ -22,11 +22,10 @@ module Jetski (
   -- * Accessing Functions
   , function
 
-  -- * Exports from 'libffi'
-  , module X
-  , Arg
-  , argDouble
-  , retDouble
+  -- * Re-export parts of 'Jetski.Foreign'
+  , module Jetski.Foreign.Argument
+  , module Jetski.Foreign.Function
+  , module Jetski.Foreign.Return
   ) where
 
 import           Data.String (String)
@@ -37,13 +36,11 @@ import           Control.Exception (IOException)
 import           Control.Monad.Catch (MonadMask, handle)
 import           Control.Monad.IO.Class (MonadIO, liftIO)
 
+import           Jetski.Foreign.Argument
+import           Jetski.Foreign.Function
+import           Jetski.Foreign.Return
 import           Jetski.Hash
 import           Jetski.OS
-
-import           Foreign.LibFFI (Arg, RetType, callFFI)
-import           Foreign.LibFFI.Base (mkStorableArg, mkStorableRetType)
-import           Foreign.LibFFI.FFITypes (ffi_type_double)
-import           Foreign.LibFFI.Types as X
 
 import           P
 
@@ -113,16 +110,6 @@ data Library =
     -- | The source code of the compiled library.
     , libSource :: SourceCode
     }
-
-
-------------------------------------------------------------------------
--- Missing 'libffi' Arguments
-
-argDouble :: Double -> Arg
-argDouble = mkStorableArg ffi_type_double
-
-retDouble :: RetType Double
-retDouble = mkStorableRetType ffi_type_double
 
 
 ------------------------------------------------------------------------
@@ -276,11 +263,11 @@ getJetskiHome = do
 ------------------------------------------------------------------------
 -- Accessing Functions
 
-function :: MonadIO m => Library -> Symbol -> RetType a -> EitherT JetskiError m ([Arg] -> IO a)
-function lib symbol retType = do
-  fptr <- tryIO' (const (SymbolNotFound symbol))
-                 (dlsym (libDL lib) (T.unpack symbol))
-  return (callFFI fptr retType)
+function :: MonadIO m => Library -> Symbol -> Return a -> EitherT JetskiError m ([Argument] -> IO a)
+function lib symbol rtyp = do
+  fptr <- tryIO' (const (SymbolNotFound symbol)) $ dlsym (libDL lib) (T.unpack symbol)
+  return $
+    call fptr rtyp
 
 ------------------------------------------------------------------------
 -- Operating System Specifics

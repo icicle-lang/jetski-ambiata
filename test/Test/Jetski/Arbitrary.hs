@@ -23,16 +23,16 @@ import           Test.QuickCheck
 newtype Name = Name { unName :: Text }
   deriving (Eq, Ord, Show)
 
-data Argument =
+data Value =
     Double  Name Double
   | Int32   Name Int32
   | VoidPtr Name IntPtr
   deriving (Eq, Ord, Show)
 
-newtype Arguments = Arguments { getArguments :: [Argument] }
+newtype Values = Values { getArguments :: [Value] }
   deriving (Eq, Ord, Show)
 
-nameOfArgument :: Argument -> Text
+nameOfArgument :: Value -> Text
 nameOfArgument = \case
   Double  n _ -> unName n
   Int32   n _ -> unName n
@@ -41,11 +41,11 @@ nameOfArgument = \case
 
 ------------------------------------------------------------------------
 
-instance Arbitrary Arguments where
+instance Arbitrary Values where
   arbitrary =
-    Arguments . List.nubBy ((==) `on` nameOfArgument) <$> arbitrary
+    Values . List.nubBy ((==) `on` nameOfArgument) <$> arbitrary
 
-instance Arbitrary Argument where
+instance Arbitrary Value where
   arbitrary = oneof [
       Double  <$> arbitrary <*> arbitrary
     , Int32   <$> arbitrary <*> arbitrary
