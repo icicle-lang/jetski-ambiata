@@ -20,7 +20,6 @@ library
                      , directory                       == 1.2.*
                      , exceptions                      >= 0.6        && < 0.9
                      , filepath                        == 1.4.*
-                     , libffi                          == 0.1.*
                      , memory                          == 0.13.*
                      , process                         >= 1.2.3      && < 1.5
                      , temporary                       == 1.2.*
@@ -39,12 +38,46 @@ library
                        Jetski.Hash
                        Jetski.OS
 
+                       Jetski.Foreign.Argument
+                       Jetski.Foreign.Binding
+                       Jetski.Foreign.Function
+                       Jetski.Foreign.Return
+
 test-suite test
   type:                exitcode-stdio-1.0
 
   main-is:             test.hs
 
   ghc-options:         -Wall -threaded -O2
+
+  hs-source-dirs:
+                       test
+
+  build-depends:
+                       base                            >= 3          && < 5
+                     , ambiata-disorder-core
+                     , ambiata-disorder-corpus
+                     , ambiata-jetski
+                     , ambiata-p
+                     , ambiata-x-eithert
+                     , containers                      == 0.5.*
+                     , QuickCheck                      >= 2.8.2      && < 2.9
+                     , quickcheck-instances            == 0.3.*
+                     , text                            == 1.2.*
+                     , transformers                    >= 0.3        && < 0.6
+
+test-suite test-dynamic
+  -- Cabal < 1.24 doesn't build this properly, but there's no way to do a
+  -- conditional based on the cabal version, the best we can do is use GHC as a
+  -- proxy because we know that GHC 8.0 requires at least Cabal 1.24.
+  if impl(ghc < 8.0)
+    buildable:         False
+
+  type:                exitcode-stdio-1.0
+
+  main-is:             test.hs
+
+  ghc-options:         -Wall -threaded -dynamic -O2
 
   hs-source-dirs:
                        test

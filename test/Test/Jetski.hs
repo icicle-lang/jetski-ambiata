@@ -27,13 +27,13 @@ import           X.Control.Monad.Trans.Either (EitherT, runEitherT)
 
 ------------------------------------------------------------------------
 
-prop_library name (Arguments args) = testEitherT $ do
+prop_library name (Values args) = testEitherT $ do
   withLibrary extraOptions (source name args) $ \library -> do
-    f <- function library (unName name) retInt
+    f <- function library (unName name) retCInt
     _ <- liftIO (f (fmap ffiArg args))
     return (property succeeded)
 
-prop_assembly name (Arguments args) = testEitherT $ do
+prop_assembly name (Values args) = testEitherT $ do
   _ <- compileAssembly extraOptions (source name args)
   return (property succeeded)
 
@@ -43,7 +43,7 @@ prop_assembly name (Arguments args) = testEitherT $ do
 extraOptions :: [CompilerOption]
 extraOptions = ["-O11", "-march=native"]
 
-source :: Name -> [Argument] -> Text
+source :: Name -> [Value] -> Text
 source name args = T.unlines [
       "#include <stdint.h>"
     , ""
@@ -60,13 +60,13 @@ source name args = T.unlines [
            . ("42":)
            $ fmap nameOfArgument args
 
-ctype :: Argument -> Text
+ctype :: Value -> Text
 ctype = \case
   Double  _ _ -> "double"
   Int32   _ _ -> "int32_t"
   VoidPtr _ _ -> "void*"
 
-ffiArg :: Argument -> Arg
+ffiArg :: Value -> Argument
 ffiArg (Double  _ x) = argDouble x
 ffiArg (Int32   _ x) = argInt32  x
 ffiArg (VoidPtr _ x) = argPtr (intPtrToPtr x)
