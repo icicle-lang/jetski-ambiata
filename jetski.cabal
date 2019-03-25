@@ -7,7 +7,7 @@ copyright:             (c) 2015 Ambiata.
 synopsis:              jetski
 category:              System
 cabal-version:         >= 1.8
-build-type:            Custom
+build-type:            Simple
 description:           jetski
 
 library
@@ -17,7 +17,7 @@ library
                      , ambiata-x-eithert
                      , bytestring                      == 0.10.*
                      , cryptonite                      == 0.15.*
-                     , directory                       == 1.2.*
+                     , directory                       >= 1.2        && < 1.4
                      , exceptions                      >= 0.6        && < 0.9
                      , filepath                        == 1.4.*
                      , memory                          == 0.13.*
